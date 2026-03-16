@@ -1,6 +1,8 @@
+"""Modulo para creacion y publicacion de tareas en 
+un sistema de gestion de tareas universitarias."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -21,13 +23,15 @@ def get_role() -> str:
 
 
 def parse_date_yyyy_mm_dd(value: str) -> date | None:
+    """Convierte un string YYYY-MM-DD en un objeto date."""
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()
-    except Exception:
+    except ValueError:
         return None
 
 
 def task_row_to_dict(row) -> dict:
+    """Transforma una fila de SQLite en un diccionario de Python."""
     return {
         "id": row["id"],
         "course_code": row["course_code"],
@@ -39,9 +43,9 @@ def task_row_to_dict(row) -> dict:
         "created_at": row["created_at"],
     }
 
-
 @app.get("/api/health")
 def health():
+    """Verifica el estado de disponibilidad del servidor."""
     return jsonify({"status": "ok"}), 200
 
 
@@ -115,7 +119,8 @@ def create_task():
     """
     Crea una tarea (solo teacher).
     Body JSON:
-      course_code, title, description, due_date (YYYY-MM-DD), published (bool opcional), created_by (opcional)
+    course_code, title, description, due_date (YYYY-MM-DD),
+    published (bool opcional), created_by (opcional)
     """
     role = get_role()
     if role != "teacher":
@@ -130,13 +135,17 @@ def create_task():
     published = 1 if bool(body.get("published")) else 0
     created_by = (body.get("created_by") or "teacher").strip()
 
-    # Validaciones (para que no sea trivial)
-    if not course_code:
-        return jsonify({"error": "course_code es obligatorio"}), 400
-    if len(title) < 5:
-        return jsonify({"error": "title debe tener al menos 5 caracteres"}), 400
-    if len(description) < 10:
-        return jsonify({"error": "description debe tener al menos 10 caracteres"}), 400
+    error_msg = None
+
+    if not (course_code := (body.get("course_code") or "").strip()):
+        error_msg = "course_code es obligatorio"
+    elif len(title := (body.get("title") or "").strip()) < 5:
+        error_msg = "title debe tener al menos 5 caracteres"
+    elif len(description := (body.get("description") or "").strip()) < 10:
+        error_msg = "description debe tener al menos 10 caracteres"
+
+    if error_msg:
+        return jsonify({"error": error_msg}), 400
 
     due = parse_date_yyyy_mm_dd(due_date_str)
     if not due:
@@ -147,10 +156,11 @@ def create_task():
     conn = get_conn()
     cur = conn.cursor()
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     cur.execute(
         """
-        INSERT INTO tasks(course_code, title, description, due_date, published, created_by, created_at)
+        INSERT INTO tasks(course_code, title, description, 
+        due_date, published, created_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (course_code, title, description, due_date_str, published, created_by, now),
@@ -213,7 +223,6 @@ def delete_task(task_id: int):
     conn.close()
 
     return jsonify({"message": "Tarea eliminada"}), 200
-
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
