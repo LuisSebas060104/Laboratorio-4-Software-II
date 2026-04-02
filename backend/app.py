@@ -1,4 +1,4 @@
-"""Modulo para gestion de tareas"""
+"""Modulo para gestion de tarea"""
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
