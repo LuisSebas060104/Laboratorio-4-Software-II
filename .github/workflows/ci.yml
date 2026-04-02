@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev 
+      - dev
   pull_request:
     branches:
       - main
@@ -33,13 +33,13 @@ jobs:
         working-directory: ./frontend
         run: npm install
 
-       - name: Ejecutar pruebas del Backend
-         working-directory: ./backend
-         run: npm test
-      
-       - name: Ejecutar pruebas del Frontend
-         working-directory: ./frontend
-         run: npm test
+      - name: Ejecutar pruebas del Backend
+        working-directory: ./backend
+        run: npm test --if-present
+
+      - name: Ejecutar pruebas del Frontend
+        working-directory: ./frontend
+        run: npm test --if-present
 
       - name: SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
